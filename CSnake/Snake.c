@@ -2,8 +2,8 @@
 #include <stdbool.h>
 #include <conio.h>
 
-#define SCREEN_WIDTH 30
-#define SCREEN_HEIGHT 20
+#define SCREEN_WIDTH 60
+#define SCREEN_HEIGHT 25
 
 void UserInput();
 void Update();
@@ -36,18 +36,7 @@ void UserInput()
 	if (_kbhit()) {
 		keyCode = _getch();
 	}
-}
 
-void Update()
-{
-
-	
-}
-
-void Draw()
-{
-	system("cls");
-	
 	// decide what to do based on keycode
 	switch (keyCode)
 	{
@@ -70,6 +59,50 @@ void Draw()
 
 	// reset keycode
 	keyCode = 0;
+}
+
+void Update()
+{
+	// fill screen matrix
+	for (size_t x = 0; x < SCREEN_HEIGHT; x++)
+	{
+		for (size_t y = 0; y < SCREEN_WIDTH; y++)
+		{
+			// convert index to char
+			itoa(y, index, 10);
+
+			// print index
+			printf("%s", index);
+
+		}
+		printf("\n");
+	}
+	
+}
+
+void Draw()
+{
+	system("cls");
+
+	char index[3] = { "0" };
+
+	// print screen matrix
+	for (size_t x = 0; x < SCREEN_HEIGHT; x++)
+	{
+		for (size_t y = 0; y < SCREEN_WIDTH; y++)
+		{
+			// convert index to char
+			itoa(y, index, 10);
+
+			// print index
+			printf("%s", index);
+			printf("%s", screen[x][y]);
+
+		}
+		printf("\n");
+	}
+	
+	
 }
 
 void MoveSnake(int direction) 
