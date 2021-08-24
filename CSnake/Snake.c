@@ -2,20 +2,31 @@
 #include <stdbool.h>
 #include <conio.h>
 #include <windows.h> 
+#include <time.h>
 
-
-#define SCREEN_WIDTH 30
+#define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
+#define MS_PER_UPDATE 200
 
 void UserInput();
 void Update();
 void Draw();
 void MoveSnake(int direction);
 void gotoxy(int x, int y);
+long getCurrentTime();
+
+int snakeHeadX = 0;
+int snakeHeadY = 0;
+int snakeTailX = 0;
+int snakeTailY = 0;
+int snakeTailBeforeX = 0;
+int snakeTailBeforeY = 0;
 
 char userInput;
 int keyCode;
 bool gameRunning = true;
+long lastTime = 0;
+long currentTime = 0;
 
 int borders[SCREEN_WIDTH][SCREEN_HEIGHT];
 int snakePosition[SCREEN_WIDTH][SCREEN_HEIGHT];
@@ -26,14 +37,23 @@ enum{LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3};
 
 void main() {
 
-	while (gameRunning)
+	lastTime = getCurrentTime();
+
+	while (true)
 	{
-		
 		UserInput();
 		Update();
 		Draw();
-		
 	}
+
+	// removes inside coding when you stop the game
+	system("pause>0");
+}
+
+long getCurrentTime()
+{
+	long  currentTime = time(0);
+	return currentTime;
 }
 
 void UserInput()
@@ -69,18 +89,19 @@ void UserInput()
 void Update()
 {
 	// fill screen matrix
-	for (size_t x = 0; x < SCREEN_HEIGHT; x++)
+	for (size_t y = 0; y < SCREEN_HEIGHT; y++)
 	{
-		for (size_t y = 0; y < SCREEN_WIDTH; y++)
+		for (size_t x = 0; x < SCREEN_WIDTH; x++)
 		{
 			// set borders
-			if(x == 0 || x == SCREEN_HEIGHT - 1)
+			if(y == 0 || y == SCREEN_HEIGHT - 1 || x == 0 || x == SCREEN_WIDTH - 1)
 			{
 				borders[x][y] = 1;
 			}
+
+
 		}
 	}
-	
 }
 
 void Draw()
@@ -88,12 +109,12 @@ void Draw()
 	//system("cls");
 
 	// print screen matrix
-	for (size_t x = 0; x < SCREEN_HEIGHT; x++)
+	for (size_t y = 0; y < SCREEN_HEIGHT; y++)
 	{
-		for (size_t y = 0; y < SCREEN_WIDTH; y++)
+		for (size_t x = 0; x < SCREEN_WIDTH; x++)
 		{
 			// move cursor to console position
-			gotoxy(y, x);
+			gotoxy(x, y);
 
 			// print borders
 			if (borders[x][y] == 1)
@@ -101,8 +122,6 @@ void Draw()
 				printf("%c", '*');
 			}
 			
-			//printf("%c", borders[x][y]);
-
 			// print snake
 			if (snakePosition[x][y] == 1) 
 			{
@@ -148,3 +167,4 @@ void gotoxy(int x, int y)
 	coord.Y = y;
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
+
