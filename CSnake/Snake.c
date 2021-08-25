@@ -3,57 +3,135 @@
 #include <conio.h>
 #include <windows.h> 
 #include <time.h>
+#include <stdlib.h>
 
+// constants
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
 #define MS_PER_UPDATE 200
+#define FRUIT_AMOUNT 10
 
+// structs
+struct Positions;
+struct Positions
+{
+	int x;
+	int y;
+}position;
+
+// functions
 void UserInput();
 void Update();
 void Draw();
-void MoveSnake(int direction);
+void MoveSnake();
+bool CheckWallCollision();
+bool CheckSelfCollision();
+bool CheckFruitCollision();
+void CreateFruit();
 void gotoxy(int x, int y);
-long getCurrentTime();
+double getCurrentTime();
+void PrintSnake();
+void PrintFruit();
+void CreateBorders();
+void PrintBorders();
+void GrowSnake();
+int random_number(int min_num, int max_num);
 
-int snakeHeadX = 0;
-int snakeHeadY = 0;
-int snakeTailX = 0;
-int snakeTailY = 0;
-int snakeTailBeforeX = 0;
-int snakeTailBeforeY = 0;
+// snake parameters
+int snakeLength = 1;
+bool snakeShouldGrow = false;
 
+// fruit parameters
+int numberOfFruit = 0;
+
+// user parameters
 char userInput;
 int keyCode;
+int lastDirection = 0;
+
+// game parameters
 bool gameRunning = true;
-long lastTime = 0;
-long currentTime = 0;
 
+// time management
+double lastTime = 0;
+double currentTime = 0;
+double lag = 0.02;
+
+// positions
 int borders[SCREEN_WIDTH][SCREEN_HEIGHT];
-int snakePosition[SCREEN_WIDTH][SCREEN_HEIGHT];
-int plumsPositions[SCREEN_WIDTH][SCREEN_HEIGHT];
+struct Positions snakePosition[(SCREEN_WIDTH)*(SCREEN_HEIGHT)];
+struct Positions fruitPositions[FRUIT_AMOUNT];
 
+// keyboard interaction
 enum{ KEY_ESC = 27, KEY_LEFT = 75, KEY_RIGHT = 77, KEY_UP = 72, KEY_DOWN = 80 };
-enum{LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3};
+enum{NONE = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4};
 
 void main() {
 
+	// create borders
+	CreateBorders();
+
+	// create first fruit
+	CreateFruit();
+	
+	// set snake entrance point
+	int snakeHeadX = (SCREEN_WIDTH - 1) / 2;
+	int snakeHeadY = (SCREEN_HEIGHT - 1) / 2;
+	snakePosition[0].x = snakeHeadX;
+	snakePosition[0].y = snakeHeadY;
+
+	// set last time
 	lastTime = getCurrentTime();
 
-	while (true)
+	while (gameRunning)
 	{
 		UserInput();
-		Update();
-		Draw();
+
+		// get current time
+		currentTime = getCurrentTime();
+
+		// if the time set in lag has passed since last time was taken then update the game. 
+		// this is done so that the game will update at the same time for every computer and not
+		// based on processor speed
+		if (lastTime < currentTime - lag) 
+		{
+			// update game
+			Update();
+			Draw();
+
+			// update last time to lag game again
+			lastTime = getCurrentTime();
+		}
+
 	}
 
 	// removes inside coding when you stop the game
 	system("pause>0");
 }
 
-long getCurrentTime()
+double getCurrentTime()
 {
-	long  currentTime = time(0);
+	double  currentTime = time(0);
 	return currentTime;
+}
+
+int random_number(int min_num, int max_num)
+{
+	int result = 0, low_num = 0, hi_num = 0;
+
+	if (min_num < max_num)
+	{
+		low_num = min_num;
+		hi_num = max_num + 1; // include max_num in output
+	}
+	else {
+		low_num = max_num + 1; // include max_num in output
+		hi_num = min_num;
+	}
+
+	srand(time(NULL));
+	result = (rand() % (hi_num - low_num)) + low_num;
+	return result;
 }
 
 void UserInput()
@@ -69,16 +147,16 @@ void UserInput()
 		gameRunning = false;
 		break;
 	case KEY_LEFT:
-		MoveSnake(LEFT);
+		lastDirection = LEFT;
 		break;
 	case KEY_RIGHT:
-		MoveSnake(RIGHT);
+		lastDirection = RIGHT;
 		break;
 	case KEY_UP:
-		MoveSnake(UP);
+		lastDirection = UP;
 		break;
 	case KEY_DOWN:
-		MoveSnake(DOWN);
+		lastDirection = DOWN;
 		break;
 	}
 
@@ -88,50 +166,56 @@ void UserInput()
 
 void Update()
 {
-	// fill screen matrix
+
+	MoveSnake();
+
+	CheckWallCollision();
+
+	CheckSelfCollision();
+
+	CheckFruitCollision();
+
+}
+
+void Draw()
+{
+
+	// print snake
+	PrintSnake();
+
+}
+
+void CreateBorders()
+{
 	for (size_t y = 0; y < SCREEN_HEIGHT; y++)
 	{
 		for (size_t x = 0; x < SCREEN_WIDTH; x++)
 		{
 			// set borders
-			if(y == 0 || y == SCREEN_HEIGHT - 1 || x == 0 || x == SCREEN_WIDTH - 1)
+			if (y == 0 || y == SCREEN_HEIGHT - 1 || x == 0 || x == SCREEN_WIDTH - 1)
 			{
 				borders[x][y] = 1;
 			}
-
-
 		}
 	}
 }
 
-void Draw()
+void PrintBorders()
 {
-	//system("cls");
-
 	// print screen matrix
 	for (size_t y = 0; y < SCREEN_HEIGHT; y++)
 	{
 		for (size_t x = 0; x < SCREEN_WIDTH; x++)
 		{
-			// move cursor to console position
-			gotoxy(x, y);
-
+			
 			// print borders
 			if (borders[x][y] == 1)
 			{
-				printf("%c", '*');
-			}
-			
-			// print snake
-			if (snakePosition[x][y] == 1) 
-			{
-				printf("%c", 'X');
-			}
+				// move cursor to console position
+				gotoxy(x, y);
 
-			// print plums
-			if (plumsPositions[x][y] == 1)
-			{
-				printf("%c", 'O');
+				// print border
+				printf("%c", '*');
 			}
 
 		}
@@ -139,25 +223,108 @@ void Draw()
 	}
 }
 
-void MoveSnake(int direction) 
+void PrintSnake()
+{
+	for (size_t i = 0; i < snakeLength; i++)
+	{
+		gotoxy(snakePosition[i].x, snakePosition[i].y);
+		printf("%c", 'O');
+	}
+}
+
+void CreateFruit()
+{
+	// remove last fruit
+	gotoxy(fruitPositions[0].x, fruitPositions[0].y);
+	printf("%c", ' ');
+
+	// create new fruit
+	int randomX = random_number(1, SCREEN_WIDTH - 1);
+	int randomY = random_number(1, SCREEN_HEIGHT - 1);
+
+	fruitPositions[0].x = randomX;
+	fruitPositions[0].y = randomY;
+
+	PrintFruit();
+}
+
+void PrintFruit()
+{
+	gotoxy(fruitPositions[0].x, fruitPositions[0].y);
+	printf("%c", 'X');
+}
+
+void MoveSnake() 
 {
 
-	switch (direction)
+	// if snake has started moving and it didn't grow
+	if (lastDirection != 0 && !snakeShouldGrow)
+	{
+		// remove last snake link
+		gotoxy(snakePosition[0].x, snakePosition[0].y);
+		printf("%c", ' ');
+	}
+
+	// reset snake growth
+	if (snakeShouldGrow) {
+		snakeShouldGrow = false;
+	}
+
+	if (snakeLength > 2) {
+		for (size_t i = 0; i < snakeLength - 2; i++)
+		{
+			snakePosition[i].x = snakePosition[i + 1].x;
+		}
+	}
+
+	switch (lastDirection)
 	{
 		case LEFT:
-			puts("LEFT");
+			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 1].x - 1;
 			break;
 		case RIGHT:
-			puts("RIGHT");
+			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 1].x + 1;
 			break;
 		case UP:
-			puts("UP");
+			snakePosition[snakeLength - 1].y = snakePosition[snakeLength - 1].y - 1;
 			break;
 		case DOWN:
-			puts("DOWN");
+			snakePosition[snakeLength - 1].y = snakePosition[snakeLength - 1].y + 1;
 			break;
 	}
 
+}
+
+bool CheckWallCollision()
+{
+	// on wall collision do end sequence and stop game
+	
+	// get user input if he/she wants to play a new game
+
+	// restart game
+}
+
+bool CheckSelfCollision()
+{
+
+}
+
+bool CheckFruitCollision()
+{
+	// check if head is colliding with fruit in fruit array
+	// if it is grow snake and make a new fruit
+
+
+	// grow snake by one
+	//GrowSnake();
+
+	// create a new fruit
+	//CreateFruit();
+}
+
+void GrowSnake() 
+{
+	snakeShouldGrow = true;
 }
 
 void gotoxy(int x, int y)
