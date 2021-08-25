@@ -8,7 +8,7 @@
 // constants
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
-#define MS_PER_UPDATE 500
+#define MS_PER_UPDATE 100
 #define FRUIT_AMOUNT 10
 
 // structs
@@ -239,7 +239,7 @@ void PrintSnake()
 		printf("%c", 'O');
 	}
 
-	if (removeLastSnakeLink) 
+	if (removeLastSnakeLink)
 	{
 		removeLastSnakeLink = false;
 
@@ -247,7 +247,6 @@ void PrintSnake()
 		gotoxy(lastSnakeXToRemove, lastSnakeYToRemove);
 		printf("%c", ' ');
 	}
-	
 }
 
 void CreateFruit()
@@ -276,7 +275,7 @@ void MoveSnake()
 {
 
 	// if snake has started moving remove the last link
-	if (lastDirection != 0)
+	if (lastDirection != 0 && !snakeShouldGrow)
 	{
 		removeLastSnakeLink = true;
 
@@ -285,12 +284,18 @@ void MoveSnake()
 		lastSnakeYToRemove = snakePosition[0].y;
 	}
 
-	if (snakeLength > 1) {
-		for (size_t i = 0; i < snakeLength - 1; i++)
-		{
-			snakePosition[i].x = snakePosition[i + 1].x;
-			snakePosition[i].y = snakePosition[i + 1].y;
+	if (!snakeShouldGrow) {
+		if (snakeLength > 1) {
+			for (size_t i = 0; i < snakeLength - 1; i++)
+			{
+				snakePosition[i].x = snakePosition[i + 1].x;
+				snakePosition[i].y = snakePosition[i + 1].y;
+			}
 		}
+	}
+	else
+	{
+		// just let the snake lengthen
 	}
 
 	// reset snake growth
