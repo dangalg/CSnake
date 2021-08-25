@@ -8,7 +8,7 @@
 // constants
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
-#define MS_PER_UPDATE 200
+#define MS_PER_UPDATE 500
 #define FRUIT_AMOUNT 10
 
 // structs
@@ -29,17 +29,20 @@ bool CheckSelfCollision();
 bool CheckFruitCollision();
 void CreateFruit();
 void gotoxy(int x, int y);
-double getCurrentTime();
 void PrintSnake();
 void PrintFruit();
 void CreateBorders();
 void PrintBorders();
 void GrowSnake();
 int random_number(int min_num, int max_num);
+int getCurrentTimeInMillis();
 
 // snake parameters
 int snakeLength = 1;
 bool snakeShouldGrow = false;
+int lastSnakeXToRemove = 0;
+int lastSnakeYToRemove = 0;
+bool removeLastSnakeLink = false;
 
 // fruit parameters
 int numberOfFruit = 0;
@@ -53,9 +56,9 @@ int lastDirection = 0;
 bool gameRunning = true;
 
 // time management
-double lastTime = 0;
-double currentTime = 0;
-double lag = 0.02;
+double lag = MS_PER_UPDATE;
+int lastTime;
+int currentTime;
 
 // positions
 int borders[SCREEN_WIDTH][SCREEN_HEIGHT];
@@ -68,8 +71,11 @@ enum{NONE = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4};
 
 void main() {
 
+	float elapsed;
+
 	// create borders
 	CreateBorders();
+	PrintBorders();
 
 	// create first fruit
 	CreateFruit();
@@ -81,26 +87,27 @@ void main() {
 	snakePosition[0].y = snakeHeadY;
 
 	// set last time
-	lastTime = getCurrentTime();
+	lastTime = getCurrentTimeInMillis();
 
 	while (gameRunning)
 	{
 		UserInput();
 
 		// get current time
-		currentTime = getCurrentTime();
+		currentTime = getCurrentTimeInMillis();
 
 		// if the time set in lag has passed since last time was taken then update the game. 
 		// this is done so that the game will update at the same time for every computer and not
 		// based on processor speed
-		if (lastTime < currentTime - lag) 
+		elapsed = currentTime - lastTime;
+		if (elapsed > lag)
 		{
 			// update game
 			Update();
 			Draw();
 
 			// update last time to lag game again
-			lastTime = getCurrentTime();
+			lastTime = getCurrentTimeInMillis();
 		}
 
 	}
@@ -109,10 +116,11 @@ void main() {
 	system("pause>0");
 }
 
-double getCurrentTime()
+int getCurrentTimeInMillis()
 {
-	double  currentTime = time(0);
-	return currentTime;
+	struct timespec now;
+	timespec_get(&now, TIME_UTC);
+	return ((int)now.tv_sec) * 1000 + ((int)now.tv_nsec) / 1000000;
 }
 
 int random_number(int min_num, int max_num)
@@ -230,6 +238,16 @@ void PrintSnake()
 		gotoxy(snakePosition[i].x, snakePosition[i].y);
 		printf("%c", 'O');
 	}
+
+	if (removeLastSnakeLink) 
+	{
+		removeLastSnakeLink = false;
+
+		// remove last snake link
+		gotoxy(lastSnakeXToRemove, lastSnakeYToRemove);
+		printf("%c", ' ');
+	}
+	
 }
 
 void CreateFruit()
@@ -257,28 +275,52 @@ void PrintFruit()
 void MoveSnake() 
 {
 
-	// if snake has started moving and it didn't grow
-	if (lastDirection != 0 && !snakeShouldGrow)
+	// if snake has started moving remove the last link
+	if (lastDirection != 0)
 	{
-		// remove last snake link
-		gotoxy(snakePosition[0].x, snakePosition[0].y);
-		printf("%c", ' ');
+		removeLastSnakeLink = true;
+
+		// remove last snake link at position
+		lastSnakeXToRemove = snakePosition[0].x;
+		lastSnakeYToRemove = snakePosition[0].y;
+	}
+
+	if (snakeLength > 1) {
+		for (size_t i = 0; i < snakeLength - 1; i++)
+		{
+			snakePosition[i].x = snakePosition[i + 1].x;
+			snakePosition[i].y = snakePosition[i + 1].y;
+		}
 	}
 
 	// reset snake growth
 	if (snakeShouldGrow) {
+		snakeLength = snakeLength + 1;
+		switch (lastDirection)
+		{
+		case LEFT:
+			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 2].x - 1;
+			snakePosition[snakeLength - 1].y = snakePosition[snakeLength - 2].y;
+			break;
+		case RIGHT:
+			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 2].x + 1;
+			snakePosition[snakeLength - 1].y = snakePosition[snakeLength - 2].y;
+			break;
+		case UP:
+			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 2].x;
+			snakePosition[snakeLength - 1].y = snakePosition[snakeLength - 2].y - 1;
+			break;
+		case DOWN:
+			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 2].x;
+			snakePosition[snakeLength - 1].y = snakePosition[snakeLength - 2].y + 1;
+			break;
+		}
 		snakeShouldGrow = false;
 	}
-
-	if (snakeLength > 2) {
-		for (size_t i = 0; i < snakeLength - 2; i++)
-		{
-			snakePosition[i].x = snakePosition[i + 1].x;
-		}
-	}
-
-	switch (lastDirection)
+	else 
 	{
+		switch (lastDirection)
+		{
 		case LEFT:
 			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 1].x - 1;
 			break;
@@ -291,7 +333,10 @@ void MoveSnake()
 		case DOWN:
 			snakePosition[snakeLength - 1].y = snakePosition[snakeLength - 1].y + 1;
 			break;
+		}
 	}
+
+	
 
 }
 
@@ -313,13 +358,14 @@ bool CheckFruitCollision()
 {
 	// check if head is colliding with fruit in fruit array
 	// if it is grow snake and make a new fruit
+	if (snakePosition[snakeLength - 1].x == fruitPositions[0].x && snakePosition[snakeLength - 1].y == fruitPositions[0].y)
+	{
+		// grow snake by one
+		GrowSnake();
 
-
-	// grow snake by one
-	//GrowSnake();
-
-	// create a new fruit
-	//CreateFruit();
+		// create a new fruit
+		CreateFruit();
+	}
 }
 
 void GrowSnake() 
