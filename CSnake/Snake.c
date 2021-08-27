@@ -8,7 +8,8 @@
 // constants
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
-#define MS_PER_UPDATE 100
+#define MS_PER_UPDATE 200
+
 #define FRUIT_AMOUNT 10
 
 // structs
@@ -23,9 +24,9 @@ struct Positions
 void UserInput();
 void Update();
 void Draw();
-void MoveSnake();
-bool CheckWallCollision();
-bool CheckSelfCollision();
+struct Positions* MoveSnake();
+bool CheckWallCollision(struct Positions* lastSnakeHeadPosition);
+bool CheckSelfCollision(struct Positions* lastSnakeHeadPosition);
 bool CheckFruitCollision();
 void CreateFruit();
 void gotoxy(int x, int y);
@@ -54,6 +55,7 @@ int lastDirection = 0;
 
 // game parameters
 bool gameRunning = true;
+bool crashed = false;
 
 // time management
 double lag = MS_PER_UPDATE;
@@ -81,8 +83,8 @@ void main() {
 	CreateFruit();
 	
 	// set snake entrance point
-	int snakeHeadX = (SCREEN_WIDTH - 1) / 2;
-	int snakeHeadY = (SCREEN_HEIGHT - 1) / 2;
+	int snakeHeadX = (SCREEN_WIDTH - 2) / 2;
+	int snakeHeadY = (SCREEN_HEIGHT - 2) / 2;
 	snakePosition[0].x = snakeHeadX;
 	snakePosition[0].y = snakeHeadY;
 
@@ -110,6 +112,12 @@ void main() {
 			lastTime = getCurrentTimeInMillis();
 		}
 
+	}
+
+	if(crashed)
+	{
+		system("cls");
+		printf("%s", "Game Over");
 	}
 
 	// removes inside coding when you stop the game
@@ -174,14 +182,24 @@ void UserInput()
 
 void Update()
 {
+	struct Positions* lastPosition;
 
-	MoveSnake();
+	lastPosition = MoveSnake();
 
-	CheckWallCollision();
+	bool crashedIntoWall = false;
+	bool crashedIntoSelf = false;
 
-	CheckSelfCollision();
+	crashedIntoWall = CheckWallCollision(lastPosition);
+
+	crashedIntoSelf = CheckSelfCollision(lastPosition);
 
 	CheckFruitCollision();
+
+	if (crashedIntoSelf || crashedIntoWall) 
+	{
+		gameRunning = false;
+		crashed = true;
+	}
 
 }
 
@@ -191,16 +209,19 @@ void Draw()
 	// print snake
 	PrintSnake();
 
+	// move cursor out of screen
+	gotoxy(SCREEN_WIDTH + 1, SCREEN_HEIGHT + 1);
+
 }
 
 void CreateBorders()
 {
-	for (size_t y = 0; y < SCREEN_HEIGHT; y++)
+	for (size_t y = 0; y <= SCREEN_HEIGHT; y++)
 	{
-		for (size_t x = 0; x < SCREEN_WIDTH; x++)
+		for (size_t x = 0; x <= SCREEN_WIDTH; x++)
 		{
 			// set borders
-			if (y == 0 || y == SCREEN_HEIGHT - 1 || x == 0 || x == SCREEN_WIDTH - 1)
+			if (y == 0 || y == SCREEN_HEIGHT || x == 0 || x == SCREEN_WIDTH)
 			{
 				borders[x][y] = 1;
 			}
@@ -211,9 +232,9 @@ void CreateBorders()
 void PrintBorders()
 {
 	// print screen matrix
-	for (size_t y = 0; y < SCREEN_HEIGHT; y++)
+	for (size_t y = 0; y <= SCREEN_HEIGHT; y++)
 	{
-		for (size_t x = 0; x < SCREEN_WIDTH; x++)
+		for (size_t x = 0; x <= SCREEN_WIDTH; x++)
 		{
 			
 			// print borders
@@ -256,8 +277,8 @@ void CreateFruit()
 	printf("%c", ' ');
 
 	// create new fruit
-	int randomX = random_number(1, SCREEN_WIDTH - 1);
-	int randomY = random_number(1, SCREEN_HEIGHT - 1);
+	int randomX = random_number(2, SCREEN_WIDTH - 2);
+	int randomY = random_number(2, SCREEN_HEIGHT - 2);
 
 	fruitPositions[0].x = randomX;
 	fruitPositions[0].y = randomY;
@@ -271,17 +292,17 @@ void PrintFruit()
 	printf("%c", 'X');
 }
 
-void MoveSnake() 
+struct Positions * MoveSnake() 
 {
 
 	// if snake has started moving remove the last link
 	if (lastDirection != 0 && !snakeShouldGrow)
 	{
-		removeLastSnakeLink = true;
+removeLastSnakeLink = true;
 
-		// remove last snake link at position
-		lastSnakeXToRemove = snakePosition[0].x;
-		lastSnakeYToRemove = snakePosition[0].y;
+// remove last snake link at position
+lastSnakeXToRemove = snakePosition[0].x;
+lastSnakeYToRemove = snakePosition[0].y;
 	}
 
 	if (!snakeShouldGrow) {
@@ -322,7 +343,7 @@ void MoveSnake()
 		}
 		snakeShouldGrow = false;
 	}
-	else 
+	else
 	{
 		switch (lastDirection)
 		{
@@ -341,22 +362,59 @@ void MoveSnake()
 		}
 	}
 
-	
+	return &snakePosition[snakeLength - 1];
 
 }
 
-bool CheckWallCollision()
+bool CheckWallCollision(struct Positions* lastSnakeHeadPosition)
 {
 	// on wall collision do end sequence and stop game
-	
-	// get user input if he/she wants to play a new game
+	// 
+	//get char from last snake position
+	bool wallAtCurrentPosition = false;
 
-	// restart game
+	if (lastSnakeHeadPosition->y == 0 || lastSnakeHeadPosition->y == SCREEN_HEIGHT || lastSnakeHeadPosition->x == 0 || lastSnakeHeadPosition->x == SCREEN_WIDTH)
+	{
+		wallAtCurrentPosition = true;
+	}
+
+	// if crashed return true
+	if (wallAtCurrentPosition)
+	{
+		return true;
+	}
+
+	return false;
 }
 
-bool CheckSelfCollision()
+bool CheckSelfCollision(struct Positions* lastSnakeHeadPosition)
 {
+	// on wall collision do end sequence and stop game
+	// 
+	//get char from last snake position
+	bool snakeBodyAtCurrentPosition = false;
 
+	if (snakeLength > 1) {
+		for (size_t i = 0; i < snakeLength - 1; i++)
+		{
+
+			if (lastSnakeHeadPosition->x == snakePosition[i].x &&
+				lastSnakeHeadPosition->y == snakePosition[i].y)
+			{
+				snakeBodyAtCurrentPosition = true;
+				break;
+			}
+		}
+	}
+
+
+	// if crashed return true
+	if (snakeBodyAtCurrentPosition)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 bool CheckFruitCollision()
