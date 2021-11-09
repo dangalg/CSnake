@@ -11,6 +11,7 @@
 #define MS_PER_UPDATE 200
 
 #define FRUIT_AMOUNT 10
+#define BULLET_AMOUNT 1
 
 // structs
 struct Positions;
@@ -19,6 +20,13 @@ struct Positions
 	int x;
 	int y;
 }position;
+
+struct Bullets;
+struct Bullets
+{
+	struct Positions bulletPosition;
+	int direction;
+}bullet;
 
 // functions
 void UserInput();
@@ -51,7 +59,8 @@ int numberOfFruit = 0;
 // user parameters
 char userInput;
 int keyCode;
-int lastDirection = 0;
+int lastSnakeDirection = 0;
+bool fireWeapon = false;
 
 // game parameters
 bool gameRunning = true;
@@ -66,9 +75,10 @@ int currentTime;
 int borders[SCREEN_WIDTH][SCREEN_HEIGHT];
 struct Positions snakePosition[(SCREEN_WIDTH)*(SCREEN_HEIGHT)];
 struct Positions fruitPositions[FRUIT_AMOUNT];
+struct Bullets bulletsInGame[BULLET_AMOUNT];
 
 // keyboard interaction
-enum{ KEY_ESC = 27, KEY_LEFT = 75, KEY_RIGHT = 77, KEY_UP = 72, KEY_DOWN = 80 };
+enum{ KEY_ESC = 27, KEY_LEFT = 75, KEY_RIGHT = 77, KEY_UP = 72, KEY_DOWN = 80, KEY_SPACE = 32, KEY_SPEED_UP = 115, KEY_SPEED_DOWN = 100};
 enum{NONE = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4};
 
 void main() {
@@ -163,16 +173,25 @@ void UserInput()
 		gameRunning = false;
 		break;
 	case KEY_LEFT:
-		lastDirection = LEFT;
+		lastSnakeDirection = LEFT;
 		break;
 	case KEY_RIGHT:
-		lastDirection = RIGHT;
+		lastSnakeDirection = RIGHT;
 		break;
 	case KEY_UP:
-		lastDirection = UP;
+		lastSnakeDirection = UP;
 		break;
 	case KEY_DOWN:
-		lastDirection = DOWN;
+		lastSnakeDirection = DOWN;
+		break;
+	case KEY_SPACE:
+		fireWeapon = true;
+		break;
+	case KEY_SPEED_UP:
+		lag++;
+		break;
+	case KEY_SPEED_DOWN:
+		lag--;
 		break;
 	}
 
@@ -182,6 +201,9 @@ void UserInput()
 
 void Update()
 {
+	//size_t n = sizeof(a);
+	//if(fireWeapon && bulletsInGame.)
+
 	struct Positions* lastPosition;
 
 	lastPosition = MoveSnake();
@@ -256,6 +278,7 @@ void PrintSnake()
 {
 	for (size_t i = 0; i < snakeLength; i++)
 	{
+		// print snake link
 		gotoxy(snakePosition[i].x, snakePosition[i].y);
 		printf("%c", 'O');
 	}
@@ -292,17 +315,39 @@ void PrintFruit()
 	printf("%c", 'X');
 }
 
-struct Positions * MoveSnake() 
+void CreateBullet()
+{
+	// remove last fruit
+	gotoxy(fruitPositions[0].x, fruitPositions[0].y);
+	printf("%c", ' ');
+
+	// create new fruit
+	int randomX = random_number(2, SCREEN_WIDTH - 2);
+	int randomY = random_number(2, SCREEN_HEIGHT - 2);
+
+	fruitPositions[0].x = randomX;
+	fruitPositions[0].y = randomY;
+
+	PrintFruit();
+}
+
+void PrintBullet()
+{
+	gotoxy(fruitPositions[0].x, fruitPositions[0].y);
+	printf("%c", 'X');
+}
+
+struct Positions* MoveSnake()
 {
 
 	// if snake has started moving remove the last link
-	if (lastDirection != 0 && !snakeShouldGrow)
+	if (lastSnakeDirection != 0 && !snakeShouldGrow)
 	{
-removeLastSnakeLink = true;
+		removeLastSnakeLink = true;
 
-// remove last snake link at position
-lastSnakeXToRemove = snakePosition[0].x;
-lastSnakeYToRemove = snakePosition[0].y;
+		// remove last snake link at position
+		lastSnakeXToRemove = snakePosition[0].x;
+		lastSnakeYToRemove = snakePosition[0].y;
 	}
 
 	if (!snakeShouldGrow) {
@@ -322,7 +367,7 @@ lastSnakeYToRemove = snakePosition[0].y;
 	// reset snake growth
 	if (snakeShouldGrow) {
 		snakeLength = snakeLength + 1;
-		switch (lastDirection)
+		switch (lastSnakeDirection)
 		{
 		case LEFT:
 			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 2].x - 1;
@@ -345,7 +390,7 @@ lastSnakeYToRemove = snakePosition[0].y;
 	}
 	else
 	{
-		switch (lastDirection)
+		switch (lastSnakeDirection)
 		{
 		case LEFT:
 			snakePosition[snakeLength - 1].x = snakePosition[snakeLength - 1].x - 1;
