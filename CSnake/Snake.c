@@ -45,6 +45,11 @@ void PrintBorders();
 void GrowSnake();
 int random_number(int min_num, int max_num);
 int getCurrentTimeInMillis();
+void MoveBullets();
+void CreateBullet(int fireDirection);
+void PrintBullet();
+void fruitCollidedWithSnake();
+void fruitCollidedWithBullet();
 
 // snake parameters
 int snakeLength = 1;
@@ -52,6 +57,9 @@ bool snakeShouldGrow = false;
 int lastSnakeXToRemove = 0;
 int lastSnakeYToRemove = 0;
 bool removeLastSnakeLink = false;
+
+// bullet parameters
+int bulletAmount = 0;
 
 // fruit parameters
 int numberOfFruit = 0;
@@ -78,10 +86,13 @@ struct Positions fruitPositions[FRUIT_AMOUNT];
 struct Bullets bulletsInGame[BULLET_AMOUNT];
 
 // keyboard interaction
-enum{ KEY_ESC = 27, KEY_LEFT = 75, KEY_RIGHT = 77, KEY_UP = 72, KEY_DOWN = 80, KEY_SPACE = 32, KEY_SPEED_UP = 115, KEY_SPEED_DOWN = 100};
+enum{KEY_ESC = 27, KEY_LEFT = 75, KEY_RIGHT = 77, KEY_UP = 72, KEY_DOWN = 80, KEY_SPACE = 32, KEY_SPEED_UP = 115, KEY_SPEED_DOWN = 100};
 enum{NONE = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4};
+enum{SNAKE = 0, BULLET = 1};
 
 void main() {
+
+	bulletAmount = 0;
 
 	float elapsed;
 
@@ -201,23 +212,44 @@ void UserInput()
 
 void Update()
 {
-	//size_t n = sizeof(a);
-	//if(fireWeapon && bulletsInGame.)
+	// create bullet on fire
+	if (fireWeapon && bulletAmount < BULLET_AMOUNT) {
+		CreateBullet(lastSnakeDirection);
+	}
+	// advance bullet
+	if (bulletAmount > 0)
+	{
+		MoveBullets();
+	}
 
 	struct Positions* lastPosition;
 
 	lastPosition = MoveSnake();
 
 	bool crashedIntoWall = false;
+	bool bulletCrashedIntoWall = false;
 	bool crashedIntoSelf = false;
+	bool crashedIntoBullet = false;
 
 	crashedIntoWall = CheckWallCollision(lastPosition);
 
 	crashedIntoSelf = CheckSelfCollision(lastPosition);
 
-	CheckFruitCollision();
+	// check fruit collision with snake
+	CheckFruitCollision(SNAKE, snakePosition[snakeLength - 1].x, snakePosition[snakeLength - 1].y);
 
-	if (crashedIntoSelf || crashedIntoWall) 
+	// check fruit collision with bullet
+	CheckFruitCollision(SNAKE, bulletsInGame[bulletAmount - 1].bulletPosition.x, bulletsInGame[bulletAmount - 1].bulletPosition.y);
+
+	struct Positions* lastBulletPosition = &bulletsInGame[bulletAmount - 1].bulletPosition;
+
+	bulletCrashedIntoWall = CheckWallCollision(lastBulletPosition);
+	if (bulletAmount > 0 && bulletCrashedIntoWall)
+	{
+		bulletAmount--;
+	}
+
+	if (crashedIntoSelf || crashedIntoWall || crashedIntoBullet)
 	{
 		gameRunning = false;
 		crashed = true;
@@ -230,6 +262,9 @@ void Draw()
 
 	// print snake
 	PrintSnake();
+
+	// print bullets
+	PrintBullet();
 
 	// move cursor out of screen
 	gotoxy(SCREEN_WIDTH + 1, SCREEN_HEIGHT + 1);
@@ -315,26 +350,68 @@ void PrintFruit()
 	printf("%c", 'X');
 }
 
-void CreateBullet()
+void CreateBullet(int fireDirection)
 {
-	// remove last fruit
-	gotoxy(fruitPositions[0].x, fruitPositions[0].y);
-	printf("%c", ' ');
+	bulletAmount++;
 
-	// create new fruit
-	int randomX = random_number(2, SCREEN_WIDTH - 2);
-	int randomY = random_number(2, SCREEN_HEIGHT - 2);
+	// create new bullet
+	int snakePositionX = snakePosition[snakeLength - 1].x;
+	int snakePositionY = snakePosition[snakeLength - 1].y;
 
-	fruitPositions[0].x = randomX;
-	fruitPositions[0].y = randomY;
+	bulletsInGame[bulletAmount-1].bulletPosition.x = snakePositionX;
+	bulletsInGame[bulletAmount-1].bulletPosition.y = snakePositionY;
 
-	PrintFruit();
+	bulletsInGame[bulletAmount - 1].direction = fireDirection;
+
+	switch (fireDirection)
+	{
+	case LEFT:
+		bulletsInGame[bulletAmount-1].bulletPosition.x = snakePosition[snakeLength - 1].x - 2;
+		bulletsInGame[bulletAmount - 1].bulletPosition.y = snakePosition[snakeLength - 1].y;
+		break;
+	case RIGHT:
+		bulletsInGame[bulletAmount - 1].bulletPosition.x = snakePosition[snakeLength - 1].x + 2;
+		bulletsInGame[bulletAmount - 1].bulletPosition.y = snakePosition[snakeLength - 1].y;
+		break;
+	case UP:
+		bulletsInGame[bulletAmount - 1].bulletPosition.x = snakePosition[snakeLength - 1].x;
+		bulletsInGame[bulletAmount - 1].bulletPosition.y = snakePosition[snakeLength - 1].y - 2;
+		break;
+	case DOWN:
+		bulletsInGame[bulletAmount - 1].bulletPosition.x = snakePosition[snakeLength - 1].x;
+		bulletsInGame[bulletAmount - 1].bulletPosition.y = snakePosition[snakeLength - 1].y + 2;
+		break;
+	}
+
+	PrintBullet();
 }
 
 void PrintBullet()
 {
-	gotoxy(fruitPositions[0].x, fruitPositions[0].y);
-	printf("%c", 'X');
+ 	gotoxy(bulletsInGame[bulletAmount-1].bulletPosition.x, bulletsInGame[bulletAmount - 1].bulletPosition.y);
+	printf("%c", '*');
+}
+
+void MoveBullets() 
+{
+	for (size_t i = 0; i < bulletAmount; i++)
+	{
+		switch (bulletsInGame[i].direction)
+		{
+		case LEFT:
+			bulletsInGame[i].bulletPosition.x = bulletsInGame[i].bulletPosition.x - 1;
+			break;
+		case RIGHT:
+			bulletsInGame[i].bulletPosition.x = bulletsInGame[i].bulletPosition.x + 1;
+			break;
+		case UP:
+			bulletsInGame[i].bulletPosition.y = bulletsInGame[i].bulletPosition.y - 1;
+			break;
+		case DOWN:
+			bulletsInGame[i].bulletPosition.y = bulletsInGame[i].bulletPosition.y + 1;
+			break;
+		}
+	}
 }
 
 struct Positions* MoveSnake()
@@ -411,14 +488,14 @@ struct Positions* MoveSnake()
 
 }
 
-bool CheckWallCollision(struct Positions* lastSnakeHeadPosition)
+bool CheckWallCollision(struct Positions* lastPosition)
 {
 	// on wall collision do end sequence and stop game
 	// 
 	//get char from last snake position
 	bool wallAtCurrentPosition = false;
 
-	if (lastSnakeHeadPosition->y == 0 || lastSnakeHeadPosition->y == SCREEN_HEIGHT || lastSnakeHeadPosition->x == 0 || lastSnakeHeadPosition->x == SCREEN_WIDTH)
+	if (lastPosition->y == 0 || lastPosition->y == SCREEN_HEIGHT || lastPosition->x == 0 || lastPosition->x == SCREEN_WIDTH)
 	{
 		wallAtCurrentPosition = true;
 	}
@@ -462,18 +539,45 @@ bool CheckSelfCollision(struct Positions* lastSnakeHeadPosition)
 	return false;
 }
 
-bool CheckFruitCollision()
+bool CheckFruitCollision(int whoHitFruit, int x, int y)
 {
 	// check if head is colliding with fruit in fruit array
 	// if it is grow snake and make a new fruit
-	if (snakePosition[snakeLength - 1].x == fruitPositions[0].x && snakePosition[snakeLength - 1].y == fruitPositions[0].y)
+	if (x == fruitPositions[0].x && y == fruitPositions[0].y)
 	{
-		// grow snake by one
-		GrowSnake();
-
-		// create a new fruit
-		CreateFruit();
+		switch (whoHitFruit)
+		{
+		case SNAKE : 
+			fruitCollidedWithSnake();
+			break;
+		case BULLET:
+			fruitCollidedWithBullet();
+			break;
+		}
 	}
+}
+
+void fruitCollidedWithSnake() 
+{
+	// grow snake by one
+	GrowSnake();
+
+	// create a new fruit
+	CreateFruit();
+}
+
+void fruitCollidedWithBullet() 
+{
+	if (bulletAmount > 0) 
+	{
+		bulletAmount--;
+	}
+
+	// grow snake by one
+	GrowSnake();
+
+	// create a new fruit
+	CreateFruit();
 }
 
 void GrowSnake() 
